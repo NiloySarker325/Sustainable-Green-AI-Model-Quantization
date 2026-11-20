@@ -1,4 +1,6 @@
-Model,Precision,VRAM_GB,Total_Tokens,Time_s,Throughput_tok_s,Energy_Joules,Joules_per_Token,CO2_g,ARC_Challenge_%,GSM8K_%,Avg_Accuracy_%
-Qwen/Qwen2.5-3B-Instruct,FP16,5.75,2292,100.79,22.74,11992.51,5.2323,1.1368,49.0,64.0,56.5
-Qwen/Qwen2.5-3B-Instruct,8-bit,3.16,2248,410.15,5.48,33011.66,14.6849,3.1292,54.0,63.0,58.5
-Qwen/Qwen2.5-3B-Instruct,4-bit_NF4,1.87,2348,153.17,15.33,13341.11,5.6819,1.2646,51.0,68.0,59.5
+Model,Precision,VRAM_GB,Total_Tokens,Time_s,Throughput_tok_s,Energy_Joules,Joules_per_Token,CO2_g,ARC_Challenge_%,GSM8K_%,Energy_vs_FP16_%
+Qwen/Qwen2.5-3B-Instruct,FP16,5.75,2292,100.79,22.74,11992.51,5.2323,1.1368,49.0,64.0,0.0
+Qwen/Qwen2.5-3B-Instruct,8-bit,3.16,2248,410.15,5.48,33011.66,14.6849,3.1292,54.0,63.0,180.7
+Qwen/Qwen2.5-3B-Instruct,4-bit_NF4,1.87,2348,153.17,15.33,13341.11,5.6819,1.2646,51.0,68.0,8.6
+Qwen/Qwen2.5-3B-Instruct,GGUF_Q8_0,3.37,2312,80.78,28.62,5754.9,2.4891,0.7124,,64.0,-52.4
+Qwen/Qwen2.5-3B-Instruct,GGUF_Q4_K_M,1.96,2308,69.75,33.09,4817.44,2.0873,0.6129,,60.0,-60.1

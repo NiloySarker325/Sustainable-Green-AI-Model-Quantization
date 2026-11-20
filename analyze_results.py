@@ -3,21 +3,23 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# 1. Load the energy profiling results
+# 1. Load energy profiling results
 energy_df = pd.read_csv("results/energy_summary.csv")
 
-# 2. Map precision names to their lm-eval output folders
+# 2. Map all 5 precisions to their lm-eval output folders
 eval_folders = {
     "FP16": "results/eval_fp16",
     "8-bit": "results/eval_8bit",
     "4-bit_NF4": "results/eval_4bit",
+    "GGUF_Q8_0": "results/eval_gguf_q8",
+    "GGUF_Q4_K_M": "results/eval_gguf_q4",
 }
 
 def extract_metric(task_dict, prefixes):
     for prefix in prefixes:
         for key, val in task_dict.items():
             if key.startswith(prefix) and "stderr" not in key and isinstance(val, (int, float)):
-                return val * 100  # Convert to percentage
+                return val * 100
     return None
 
 accuracy_rows = []
@@ -31,9 +33,7 @@ for precision, folder in eval_folders.items():
     with open(latest_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    # Works whether JSON is wrapped in {"results": {...}} or flat {"arc_challenge": {...}}
     res = data.get("results", data)
-
     arc_score = extract_metric(res.get("arc_challenge", {}), ["acc_norm", "acc"])
     gsm_score = extract_metric(res.get("gsm8k", {}), ["exact_match,flexible-extract", "exact_match,strict-match", "exact_match"])
 
@@ -44,61 +44,84 @@ for precision, folder in eval_folders.items():
     })
 
 acc_df = pd.DataFrame(accuracy_rows)
-
-# 3. Merge Energy + Accuracy and save
 full_df = pd.merge(energy_df, acc_df, on="Precision", how="left")
-full_df["Avg_Accuracy_%"] = full_df[["ARC_Challenge_%", "GSM8K_%"]].mean(axis=1).round(2)
+
+# Calculate Energy Savings % relative to FP16
+fp16_energy = full_df.loc[full_df["Precision"] == "FP16", "Joules_per_Token"].values[0]
+full_df["Energy_vs_FP16_%"] = ((full_df["Joules_per_Token"] - fp16_energy) / fp16_energy * 100).round(1)
+
 full_df.to_csv("results/full_benchmark.csv", index=False)
 
-print("\n=== Combined Energy-Accuracy Table ===")
-print(full_df[["Precision", "VRAM_GB", "Throughput_tok_s", "Joules_per_Token", "ARC_Challenge_%", "GSM8K_%", "Avg_Accuracy_%"]].to_string(index=False))
+print("\n=== Complete 5-Way Energy-Accuracy Table ===")
+cols = ["Precision", "VRAM_GB", "Throughput_tok_s", "Joules_per_Token", "Energy_vs_FP16_%", "GSM8K_%", "ARC_Challenge_%"]
+print(full_df[cols].to_string(index=False))
 
-# 4. Generate Pareto Frontier & Efficiency Chart
-fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+# 3. Generate 2-Panel Publication Chart
+fig, axes = plt.subplots(1, 2, figsize=(14, 5.5))
 
-# Plot 1: Energy per Token vs. Average Accuracy (Pareto Frontier)
+# Panel 1: Energy vs. GSM8K Accuracy (Pareto Frontier)
 ax1 = axes[0]
-colors = ["#2b5c8f", "#d95f02", "#1b9e77"]
-for i, row in full_df.iterrows():
+colors = {
+    "FP16": "#2b5c8f",
+    "8-bit": "#d95f02",
+    "4-bit_NF4": "#7570b3",
+    "GGUF_Q8_0": "#1b9e77",
+    "GGUF_Q4_K_M": "#e7298a",
+}
+
+for _, row in full_df.iterrows():
+    p = row["Precision"]
     ax1.scatter(
         row["Joules_per_Token"],
-        row["Avg_Accuracy_%"],
-        s=row["VRAM_GB"] * 80,  # Bubble size = VRAM usage
-        color=colors[i % len(colors)],
+        row["GSM8K_%"],
+        s=row["VRAM_GB"] * 85,
+        color=colors.get(p, "#333333"),
         alpha=0.85,
         edgecolors="black",
         linewidth=1.2,
+        zorder=3,
     )
     ax1.annotate(
-        f"{row['Precision']}\n({row['VRAM_GB']} GB)",
-        (row["Joules_per_Token"], row["Avg_Accuracy_%"]),
+        f"{p}\n({row['VRAM_GB']} GB)",
+        (row["Joules_per_Token"], row["GSM8K_%"]),
         textcoords="offset points",
-        xytext=(0, 12),
+        xytext=(0, 13),
         ha="center",
-        fontsize=9,
+        fontsize=8.5,
         fontweight="bold",
     )
 
-ax1.set_title("Energy–Accuracy Trade-off (Bubble Size = VRAM)", fontsize=11, fontweight="bold")
+ax1.set_title("Energy–Accuracy Trade-off (Qwen2.5-3B, Bubble = VRAM)", fontsize=11, fontweight="bold")
 ax1.set_xlabel("Energy per Token (Joules/tok) — Lower is Better")
-ax1.set_ylabel("Average Accuracy: ARC + GSM8K (%) — Higher is Better")
+ax1.set_ylabel("GSM8K Math Accuracy (%) — Higher is Better")
+ax1.set_ylim(55, 72)
+ax1.set_xlim(0, 16.5)
 ax1.grid(True, linestyle="--", alpha=0.5)
 
-# Plot 2: Side-by-Side Comparison of ARC vs GSM8K
+# Panel 2: Energy per Token Bar Chart (with % change vs FP16)
 ax2 = axes[1]
-x = range(len(full_df))
-width = 0.35
-ax2.bar([p - width/2 for p in x], full_df["ARC_Challenge_%"], width, label="ARC-Challenge", color="#4c72b0")
-ax2.bar([p + width/2 for p in x], full_df["GSM8K_%"], width, label="GSM8K (Math)", color="#dd8452")
-ax2.set_xticks(list(x))
-ax2.set_xticklabels(full_df["Precision"])
-ax2.set_ylim(0, 100)
-ax2.set_title("Benchmark Accuracy by Quantization", fontsize=11, fontweight="bold")
-ax2.set_ylabel("Accuracy (%)")
-ax2.legend()
+bar_colors = [colors.get(p, "#333333") for p in full_df["Precision"]]
+bars = ax2.bar(full_df["Precision"], full_df["Joules_per_Token"], color=bar_colors, edgecolor="black", alpha=0.85)
+
+for bar, pct in zip(bars, full_df["Energy_vs_FP16_%"]):
+    height = bar.get_height()
+    label = "Baseline" if pct == 0 else f"{pct:+.1f}%"
+    ax2.annotate(
+        f"{height:.2f} J\n({label})",
+        (bar.get_x() + bar.get_width() / 2, height),
+        textcoords="offset points",
+        xytext=(0, 5),
+        ha="center",
+        fontsize=8.5,
+        fontweight="bold",
+    )
+
+ax2.set_title("Energy Consumption per Token by Runtime & Precision", fontsize=11, fontweight="bold")
+ax2.set_ylabel("Energy per Token (Joules/tok)")
+ax2.set_ylim(0, max(full_df["Joules_per_Token"]) * 1.22)
 ax2.grid(axis="y", linestyle="--", alpha=0.5)
 
 plt.tight_layout()
-plt.savefig("results/energy_accuracy_tradeoff.png", dpi=300)
-print("\nSaved chart to results/energy_accuracy_tradeoff.png")
+plt.savefig("results/final_5way_tradeoff.png", dpi=300)
+print("\nSaved chart to results/final_5way_tradeoff.png")
 plt.show()
