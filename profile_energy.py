@@ -11,7 +11,7 @@ os.makedirs("results", exist_ok=True)
 
 MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
 
-# Standardized test prompts (expand this list or load from GSM8K/MMLU later)
+# Standardized test prompts 
 PROMPTS = [
     "Explain the second law of thermodynamics in three concise sentences.",
     "Write a Python function to compute the nth Fibonacci number iteratively.",

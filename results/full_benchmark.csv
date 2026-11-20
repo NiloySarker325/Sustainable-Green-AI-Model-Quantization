@@ -1,0 +1,4 @@
+Model,Precision,VRAM_GB,Total_Tokens,Time_s,Throughput_tok_s,Energy_Joules,Joules_per_Token,CO2_g,ARC_Challenge_%,GSM8K_%,Avg_Accuracy_%
+Qwen/Qwen2.5-3B-Instruct,FP16,5.75,2292,100.79,22.74,11992.51,5.2323,1.1368,49.0,64.0,56.5
+Qwen/Qwen2.5-3B-Instruct,8-bit,3.16,2248,410.15,5.48,33011.66,14.6849,3.1292,54.0,63.0,58.5
+Qwen/Qwen2.5-3B-Instruct,4-bit_NF4,1.87,2348,153.17,15.33,13341.11,5.6819,1.2646,51.0,68.0,59.5

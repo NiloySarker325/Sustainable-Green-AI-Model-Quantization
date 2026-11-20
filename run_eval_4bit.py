@@ -10,25 +10,20 @@ MODEL_ID = "Qwen/Qwen2.5-3B-Instruct"
 tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
 
 CONFIGS = {
-    # Uncomment the line below if your 8-bit CLI run also threw the same error:
-    # "eval_8bit": BitsAndBytesConfig(load_in_8bit=True),
-    "eval_4bit": BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_use_double_quant=True,
-    ),
+    "eval_fp16": None,
+    "eval_8bit": BitsAndBytesConfig(load_in_8bit=True),
 }
 
 for folder_name, quant_config in CONFIGS.items():
     print(f"\n{'='*50}\nEvaluating {MODEL_ID} [{folder_name}]...\n{'='*50}")
 
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_ID,
-        device_map="auto",
-        dtype=torch.float16,
-        quantization_config=quant_config,
-    )
+    # --- THIS IS THE UPDATED PART ---
+    load_kwargs = {"device_map": "auto", "dtype": torch.float16}
+    if quant_config is not None:
+        load_kwargs["quantization_config"] = quant_config
+
+    model = AutoModelForCausalLM.from_pretrained(MODEL_ID, **load_kwargs)
+    # --------------------------------
 
     lm_obj = HFLM(pretrained=model, tokenizer=tokenizer, batch_size=4)
 

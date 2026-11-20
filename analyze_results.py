@@ -3,7 +3,7 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# 1. Load your energy profiling results
+# 1. Load the energy profiling results
 energy_df = pd.read_csv("results/energy_summary.csv")
 
 # 2. Map precision names to their lm-eval output folders
@@ -13,10 +13,11 @@ eval_folders = {
     "4-bit_NF4": "results/eval_4bit",
 }
 
-def extract_metric(task_dict, preferred_keys):
-    for key in preferred_keys:
-        if key in task_dict:
-            return task_dict[key] * 100  # Convert to percentage
+def extract_metric(task_dict, prefixes):
+    for prefix in prefixes:
+        for key, val in task_dict.items():
+            if key.startswith(prefix) and "stderr" not in key and isinstance(val, (int, float)):
+                return val * 100  # Convert to percentage
     return None
 
 accuracy_rows = []
@@ -26,14 +27,15 @@ for precision, folder in eval_folders.items():
         print(f"Warning: No JSON results found in {folder}")
         continue
 
-    # Grab the most recent results file in that folder
     latest_file = max(json_files)
     with open(latest_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    res = data.get("results", {})
-    arc_score = extract_metric(res.get("arc_challenge", {}), ["acc_norm,none", "acc_norm", "acc,none", "acc"])
-    gsm_score = extract_metric(res.get("gsm8k", {}), ["exact_match,strict-match", "exact_match,flexible-extract", "exact_match"])
+    # Works whether JSON is wrapped in {"results": {...}} or flat {"arc_challenge": {...}}
+    res = data.get("results", data)
+
+    arc_score = extract_metric(res.get("arc_challenge", {}), ["acc_norm", "acc"])
+    gsm_score = extract_metric(res.get("gsm8k", {}), ["exact_match,flexible-extract", "exact_match,strict-match", "exact_match"])
 
     accuracy_rows.append({
         "Precision": precision,

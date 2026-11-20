@@ -1,0 +1,20 @@
+{
+  "arc_challenge": {
+    "name": "arc_challenge",
+    "alias": "arc_challenge",
+    "sample_len": 100,
+    "acc,none": 0.53,
+    "acc_stderr,none": 0.05016135580465919,
+    "acc_norm,none": 0.54,
+    "acc_norm_stderr,none": 0.05009082659620331
+  },
+  "gsm8k": {
+    "name": "gsm8k",
+    "alias": "gsm8k",
+    "sample_len": 100,
+    "exact_match,strict-match": 0.06,
+    "exact_match_stderr,strict-match": 0.02386832565759418,
+    "exact_match,flexible-extract": 0.63,
+    "exact_match_stderr,flexible-extract": 0.048523658709391
+  }
+}
